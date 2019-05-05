@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import tensorboardX as tbx
 import torch
+import torch.nn.functional as F
 from sklearn.metrics import f1_score
 from sklearn.preprocessing import binarize
 from torch import nn
@@ -60,10 +61,23 @@ class ImagenetAugmentTransformers:
 
 class CosineLoss(nn.Module):
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor):
-        normalized_input = input / input.norm(dim=1)
+    def forward(self, inputs: torch.Tensor, target: torch.Tensor):
+        normalized_input = inputs / inputs.norm(dim=1)
         dot_product = (normalized_input * target).sum(dim=1)
-        return (torch.ones(input.shape[0]) - dot_product).mean()
+        return (torch.ones(inputs.shape[0]) - dot_product).mean()
+
+
+class CrossEntropyCosineLoss(nn.Module):
+
+    def __init__(self, lambda_):
+        super().__init__()
+        self.cosine_loss = CosineLoss()
+        self.lambda_ = lambda_
+
+    def forward(self, inputs: torch.Tensor, target: torch.Tensor):
+        cosine_loss_value = self.cosine_loss(inputs, target)
+        entropy_value = F.binary_cross_entropy_with_logits(F.softmax(inputs), target)
+        return cosine_loss_value - self.lambda_ * entropy_value
 
 
 class NnModelWrapper(object, metaclass=ABCMeta):
