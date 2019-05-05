@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, RandomHorizontalFlip, RandomResizedCrop
 from tqdm import tqdm
 
-from box_dataset import to_kfold_dataloader
+from box_dataset import to_kfold_dataloader, to_holdout_dataloader
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -180,9 +180,9 @@ class NnModelWrapper(object, metaclass=ABCMeta):
                                      num_workers=num_workers, aug_ratio=aug_ratio)
         kfold_result_dfs = []
         kfold_validation_scores = []
-        for n_fold, (train_data_loader, valid_data_loader) in enumerate(kfolds):
-            logger.info("############ n_fold {} ##########".format(n_fold))
-            self._current_save_dir = self.save_root.joinpath(str(nfold))
+        for fold_idx, (train_data_loader, valid_data_loader) in enumerate(kfolds):
+            logger.info("############ n_fold {} ##########".format(fold_idx))
+            self._current_save_dir = self.save_root.joinpath(str(fold_idx))
             val_score, result_df = self.train(train_data_loader, valid_data_loader, n_epochs, patience=patience,
                                               validation_metric=validation_metric)
             kfold_result_dfs.append(result_df)
@@ -190,6 +190,37 @@ class NnModelWrapper(object, metaclass=ABCMeta):
 
         return np.mean(kfold_validation_scores), np.std(kfold_validation_scores), \
                kfold_result_dfs, kfold_validation_scores
+
+    def holdout_train(self, data_loader: DataLoader, train_batch_size, valid_batch_size, n_epochs, patience=10,
+                      validation_metric="score", valid_size=0.2,
+                      num_workers=None, random_seed=None, aug_ratio=0):
+
+        if num_workers is None:
+            num_workers = os.cpu_count()
+
+        train_data_loader, valid_data_loader, train_indices, valid_indices = to_holdout_dataloader(
+            data_loader,
+            valid_transform=ImagenetTransformers(),
+            valid_size=valid_size,
+            train_batch_size=train_batch_size,
+            valid_batch_size=valid_batch_size,
+            random_seed=random_seed,
+            num_workers=num_workers,
+            aug_ratio=aug_ratio)
+
+        self.write_indices(train_indices, "train", self._current_save_dir)
+        self.write_indices(valid_indices, "valid", self._current_save_dir)
+
+        val_score, result_df = self.train(train_data_loader, valid_data_loader, n_epochs, patience=patience,
+                                          validation_metric=validation_metric)
+
+        result_df.to_csv(self._current_save_dir.joinpath("train_result.csv"))
+        return val_score, result_df
+
+    @staticmethod
+    def write_indices(indices, suffix, save_dir):
+        with save_dir.joinpath(suffix + "_indices.csv").open(mode="w+", encoding="utf-8") as f:
+            f.write("\n".join([str(idx) for idx in indices]))
 
     def train(self, train_data_loader: DataLoader, valid_data_loader: DataLoader, n_epochs, patience=10,
               validation_metric="score"):

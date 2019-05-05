@@ -23,6 +23,8 @@ def main():
 
     save_dir = Path(__file__).parent.parent.joinpath("output/resnet50_pretrained")
     save_dir.mkdir(exist_ok=True, parents=True)
+
+    NnModelWrapper.write_indices(test_dataloader.sampler.indices, "test", save_dir)
     model = NnModelWrapper(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-2,
                            clip_grad_value=10, random_state=RANDOM_SEED)
     score_avg, score_mean, _, _ = model.kfold_train(data_loader=train_dataloader,

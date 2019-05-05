@@ -85,6 +85,29 @@ def to_kfold_dataloader(dataloader: TorchDataLoader, nfold, valid_transform=None
                                sampler=SubsetRandomSampler(valid_indices), num_workers=num_workers))
 
 
+def to_holdout_dataloader(dataloader: TorchDataLoader, valid_size, valid_transform=None, random_seed=None,
+                          std_scale=False,
+                          train_batch_size=None, valid_batch_size=None, aug_ratio=0, num_workers=None):
+    train_indices = dataloader.sampler.indices
+    train_targets = [dataloader.dataset.targets[idx] for idx in train_indices]
+
+    train_indices, valid_indices = train_test_split(train_indices, shuffle=True, test_size=valid_size,
+                                                    random_state=random_seed,
+                                                    stratify=train_targets)
+    augmented_train_indices = train_indices
+    if aug_ratio > 0:
+        augmented_train_indices = sample_indices(train_indices, aug_ratio, random_seed=random_seed)
+
+    train_data_loader = TorchDataLoader(dataloader.dataset, batch_size=train_batch_size,
+                                        sampler=SubsetRandomSampler(augmented_train_indices), num_workers=num_workers)
+
+    valid_data_folder = BoxDataFolder(valid_transform)
+    valid_data_loader = TorchDataLoader(valid_data_folder, batch_size=valid_batch_size,
+                                        sampler=SubsetRandomSampler(valid_indices), num_workers=num_workers)
+
+    return train_data_loader, valid_data_loader, train_indices, valid_indices
+
+
 if __name__ == '__main__':
     # for debug
     train_loader, test_loader = BoxDataFolder.create_train_test_loader(test_size=0.2, train_batch_size=32,
