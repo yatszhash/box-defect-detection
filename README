@@ -1,0 +1,20 @@
+
+
+# modeling
+- transfer learning
+- sparse modeling
+- 
+
+# base model
+- resnet
+
+# scaling
+- subtracting the mean channel value 
+  computed over the entire training set and dividing by the standard deviation.
+
+# augmentation
+
+- randomly cropped from
+    (NGに傷やへこみなど一部の変化だけがある場合、cropにより判断に必要な情報が欠落する可能性があるため行わない)
+- random horizontal flipping
+- random shifting/cropping
