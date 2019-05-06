@@ -13,7 +13,7 @@ from sklearn.metrics import f1_score
 from sklearn.preprocessing import binarize
 from torch import nn
 from torch import optim
-from torch.optim.lr_scheduler import CosineAnnealingLr
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, RandomHorizontalFlip, RandomResizedCrop
 from tqdm import tqdm
@@ -66,12 +66,12 @@ class CosineLoss(nn.Module):
             target = F.one_hot(target).float()
         elif len(target.shape) == 2 and target.shape[1] == 1:
             target = F.one_hot(target.reshape(-1)).float()
-        normalized_input = inputs / inputs.norm(dim=1)
+        normalized_input = inputs / inputs.norm(dim=1, keepdim=True)
         dot_product = (normalized_input * target).sum(dim=1)
-        return (torch.ones(inputs.shape[0]) - dot_product).mean()
+        return (1 - dot_product).mean()
 
 
-class CrossEntropyCosineLoss(nn.Module):
+class CosineCrossEntropyLoss(nn.Module):
 
     def __init__(self, lambda_):
         super().__init__()
@@ -79,6 +79,7 @@ class CrossEntropyCosineLoss(nn.Module):
         self.lambda_ = lambda_
 
     def forward(self, inputs: torch.Tensor, target: torch.Tensor):
+        target = target.long().reshape(-1)
         cosine_loss_value = self.cosine_loss(inputs, target)
         entropy_value = F.cross_entropy(inputs, target)
         return cosine_loss_value - self.lambda_ * entropy_value
@@ -92,7 +93,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
     def __init__(self, model_params, model_factory, save_dir: Path, optimizer_factory=None, loss_function=None,
                  score_function=None, lr=1e-3, weight_decay=1e-4, scheduler="cosine_annealing", clip_grad_value=None,
                  threshold=0.5, model_path=None,
-                 random_state=0):
+                 random_state=0, **kwargs):
         self.random_state = random_state
         self.threshold = threshold
         self.model_path = model_path
@@ -107,6 +108,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
 
         self.save_root = save_dir
         self._current_save_dir = save_dir
+        self.kwargs = kwargs
 
         if score_function:
             self.score_function = score_function
@@ -144,7 +146,8 @@ class NnModelWrapper(object, metaclass=ABCMeta):
         self.register_loss_function(self.loss_function)
 
     def _register_scheduler(self, scheduler):
-        self.scheduler = CosineAnnealingLr(self.optimizer, T_max=12) if scheduler == "cosine_annealing" else scheduler(
+        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=12,
+                                           eta_min=1e-6) if scheduler == "cosine_annealing" else scheduler(
             self.optimizer)
 
     def _model_to_device(self, random_state):
@@ -162,14 +165,16 @@ class NnModelWrapper(object, metaclass=ABCMeta):
             self.optimizer = optimizer_factory(self.model.parameters(), lr)
 
     def register_loss_function(self, loss_function):
-        self.add_sigmoid = True
+        self.require_softmax = True
         if loss_function == "cosine":
             self.loss_function = CosineLoss()
+        elif loss_function == "cosine_cross_entropy":
+            self.loss_function = CosineCrossEntropyLoss(self.kwargs["loss_lambda_"])
         elif loss_function == "mae":
             self.loss_function = nn.L1Loss()
         else:
             self.loss_function = nn.BCEWithLogitsLoss()
-            self.add_sigmoid = False
+            self.require_softmax = False
 
     def kfold_train(self, data_loader: DataLoader, train_batch_size, valid_batch_size, n_epochs, patience=10,
                     validation_metric="score",
@@ -277,7 +282,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
 
             self.scheduler.step()
 
-        logger.info("train done! best validation metric : %.5f", self._current_max_valid_score)
+        logger.info("train done! best validation metric : %.6f", self._current_max_valid_score)
 
         self._tbx_writer.export_scalars_to_json(self._current_save_dir.joinpath("all_scalars.json"))
         self._tbx_writer.close()
@@ -331,11 +336,12 @@ class NnModelWrapper(object, metaclass=ABCMeta):
         outputs = self.model(inputs)
         labels = labels.reshape((-1, 1)).float()
         all_labels.append(labels.cpu().detach().numpy())
-        predicted = torch.sigmoid(outputs)
-        all_outputs.append(predicted.cpu().detach().numpy())
+        if not self.require_softmax:
+            predicted_classes = torch.sigmoid(outputs)
+        else:
+            predicted_classes = torch.softmax(outputs, dim=1)[:, 1:]
+        all_outputs.append(predicted_classes.cpu().detach().numpy())
         # labels = labels.to(device)
-        if self.add_sigmoid:
-            outputs = predicted
         loss = self.loss_function(outputs, labels)
         return loss
 

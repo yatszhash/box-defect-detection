@@ -2,13 +2,13 @@ from unittest import TestCase
 
 import torch
 
-from model_wrapper import CrossEntropyCosineLoss, CosineLoss
+from model_wrapper import CosineCrossEntropyLoss, CosineLoss
 
 
 class TestCrossEntropyCosineLoss(TestCase):
 
     def test(self):
-        loss_function = CrossEntropyCosineLoss(lambda_=0.3)
+        loss_function = CosineCrossEntropyLoss(lambda_=0.3)
         inputs_ = torch.Tensor([[0.99, 0.89], [0.55, 0.33]])
         labels_ = torch.LongTensor([0, 1])
         output_ = loss_function(inputs_, labels_)
