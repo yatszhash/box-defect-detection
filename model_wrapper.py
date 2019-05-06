@@ -62,6 +62,10 @@ class ImagenetAugmentTransformers:
 class CosineLoss(nn.Module):
 
     def forward(self, inputs: torch.Tensor, target: torch.Tensor):
+        if len(target.shape) == 1:
+            target = F.one_hot(target).float()
+        elif len(target.shape) == 2 and target.shape[1] == 1:
+            target = F.one_hot(target.reshape(-1)).float()
         normalized_input = inputs / inputs.norm(dim=1)
         dot_product = (normalized_input * target).sum(dim=1)
         return (torch.ones(inputs.shape[0]) - dot_product).mean()
@@ -76,7 +80,7 @@ class CrossEntropyCosineLoss(nn.Module):
 
     def forward(self, inputs: torch.Tensor, target: torch.Tensor):
         cosine_loss_value = self.cosine_loss(inputs, target)
-        entropy_value = F.binary_cross_entropy_with_logits(F.softmax(inputs), target)
+        entropy_value = F.cross_entropy(inputs, target)
         return cosine_loss_value - self.lambda_ * entropy_value
 
 
