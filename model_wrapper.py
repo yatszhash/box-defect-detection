@@ -13,7 +13,7 @@ from sklearn.metrics import f1_score
 from sklearn.preprocessing import binarize
 from torch import nn
 from torch import optim
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLr
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, RandomHorizontalFlip, RandomResizedCrop
 from tqdm import tqdm
@@ -144,7 +144,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
         self.register_loss_function(self.loss_function)
 
     def _register_scheduler(self, scheduler):
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=12) if scheduler == "cosine_annealing" else scheduler(
+        self.scheduler = CosineAnnealingLr(self.optimizer, T_max=12) if scheduler == "cosine_annealing" else scheduler(
             self.optimizer)
 
     def _model_to_device(self, random_state):
