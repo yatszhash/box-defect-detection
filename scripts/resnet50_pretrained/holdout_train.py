@@ -27,14 +27,14 @@ def main():
     NnModelWrapper.write_indices(test_dataloader.sampler.indices, "test", save_dir)
     model = NnModelWrapper(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-2,
                            clip_grad_value=10, random_state=RANDOM_SEED)
-    score = model.holdout_train(data_loader=train_dataloader,
-                                train_batch_size=64,
-                                valid_batch_size=128,
-                                n_epochs=400,
-                                patience=50,
-                                valid_size=0.2,
-                                aug_ratio=2,
-                                random_seed=RANDOM_SEED)
+    score, result_df = model.holdout_train(data_loader=train_dataloader,
+                                           train_batch_size=64,
+                                           valid_batch_size=128,
+                                           n_epochs=400,
+                                           patience=50,
+                                           valid_size=0.2,
+                                           aug_ratio=2,
+                                           random_seed=RANDOM_SEED)
 
     print("best rvalidation score: {:.6f}".format(score))
     print("done")

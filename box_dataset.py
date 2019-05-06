@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+import torch
 import torchvision
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.utils import resample
@@ -98,12 +99,15 @@ def to_holdout_dataloader(dataloader: TorchDataLoader, valid_size, valid_transfo
     if aug_ratio > 0:
         augmented_train_indices = sample_indices(train_indices, aug_ratio, random_seed=random_seed)
 
+    pin_memory = torch.cuda.is_available()
     train_data_loader = TorchDataLoader(dataloader.dataset, batch_size=train_batch_size,
-                                        sampler=SubsetRandomSampler(augmented_train_indices), num_workers=num_workers)
+                                        sampler=SubsetRandomSampler(augmented_train_indices), num_workers=num_workers,
+                                        pin_memory=pin_memory)
 
     valid_data_folder = BoxDataFolder(valid_transform)
     valid_data_loader = TorchDataLoader(valid_data_folder, batch_size=valid_batch_size,
-                                        sampler=SubsetRandomSampler(valid_indices), num_workers=num_workers)
+                                        sampler=SubsetRandomSampler(valid_indices), num_workers=num_workers,
+                                        pin_memory=pin_memory)
 
     return train_data_loader, valid_data_loader, train_indices, valid_indices
 
