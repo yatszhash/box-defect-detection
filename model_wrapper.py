@@ -82,7 +82,7 @@ class CosineCrossEntropyLoss(nn.Module):
         target = target.long().reshape(-1)
         cosine_loss_value = self.cosine_loss(inputs, target)
         entropy_value = F.cross_entropy(inputs, target)
-        return cosine_loss_value - self.lambda_ * entropy_value
+        return cosine_loss_value + self.lambda_ * entropy_value
 
 
 class NnModelWrapper(object, metaclass=ABCMeta):
