@@ -26,7 +26,7 @@ def main():
     save_dir.mkdir(exist_ok=True, parents=True)
 
     NnModelWrapper.write_indices(test_dataloader.sampler.indices, "test", save_dir)
-    model = NnModelWrapper(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=2e-2,
+    model = NnModelWrapper(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-1,
                            clip_grad_value=10, random_state=RANDOM_SEED, loss_function="cosine")
     score, result_df = model.holdout_train(data_loader=train_dataloader,
                                            train_batch_size=64,
