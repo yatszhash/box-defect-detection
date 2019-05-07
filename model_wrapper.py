@@ -63,9 +63,9 @@ class CosineLoss(nn.Module):
 
     def forward(self, inputs: torch.Tensor, target: torch.Tensor):
         if len(target.shape) == 1:
-            target = F.one_hot(target).float()
+            target = F.one_hot(target.long()).float()
         elif len(target.shape) == 2 and target.shape[1] == 1:
-            target = F.one_hot(target.reshape(-1)).float()
+            target = F.one_hot(target.long().reshape(-1)).float()
         normalized_input = inputs / inputs.norm(dim=1, keepdim=True)
         dot_product = (normalized_input * target).sum(dim=1)
         return (1 - dot_product).mean()
