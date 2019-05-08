@@ -19,6 +19,7 @@ from torchvision.transforms import Compose, Resize, ToTensor, Normalize, RandomH
 from tqdm import tqdm
 
 from box_dataset import to_kfold_dataloader, to_holdout_dataloader
+from models import PretrainedResnet50WithClassEmbedding
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -78,9 +79,9 @@ class CosineCrossEntropyLoss(nn.Module):
         self.cosine_loss = CosineLoss()
         self.lambda_ = lambda_
 
-    def forward(self, inputs: torch.Tensor, target: torch.Tensor):
+    def forward(self, class_embedded: torch.Tensor, inputs: torch.Tensor, target: torch.Tensor):
         target = target.long().reshape(-1)
-        cosine_loss_value = self.cosine_loss(inputs, target)
+        cosine_loss_value = self.cosine_loss(class_embedded, inputs, target)
         entropy_value = F.cross_entropy(inputs, target)
         return cosine_loss_value + self.lambda_ * entropy_value
 
@@ -170,6 +171,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
             self.loss_function = CosineLoss()
         elif loss_function == "cosine_cross_entropy":
             self.loss_function = CosineCrossEntropyLoss(self.kwargs["loss_lambda_"])
+            self.require_softmax = False
         elif loss_function == "mae":
             self.loss_function = nn.L1Loss()
         else:
@@ -334,6 +336,9 @@ class NnModelWrapper(object, metaclass=ABCMeta):
 
     def compute_batch_loss(self, all_labels, all_outputs, labels, inputs):
         outputs = self.model(inputs)
+
+        if isinstance(self.model, PretrainedResnet50WithClassEmbedding):
+            class_embedding, outputs = outputs[0], outputs[1]
         labels = labels.reshape((-1, 1)).float()
         all_labels.append(labels.cpu().detach().numpy())
         if not self.require_softmax:
@@ -342,8 +347,9 @@ class NnModelWrapper(object, metaclass=ABCMeta):
             predicted_classes = torch.softmax(outputs, dim=1)[:, 1:]
         all_outputs.append(predicted_classes.cpu().detach().numpy())
         # labels = labels.to(device)
-        loss = self.loss_function(outputs, labels)
-        return loss
+        if isinstance(self.model, PretrainedResnet50WithClassEmbedding):
+            return self.loss_function(outputs, class_embedding, labels)
+        return self.loss_function(outputs, labels)
 
     def switch_device(self, data):
         inputs = data[0]
