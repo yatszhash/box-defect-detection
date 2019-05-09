@@ -81,8 +81,9 @@ class CosineCrossEntropyLoss(nn.Module):
 
     def forward(self, class_embedded: torch.Tensor, inputs: torch.Tensor, target: torch.Tensor):
         target = target.long().reshape(-1)
-        cosine_loss_value = self.cosine_loss(class_embedded, inputs, target)
-        entropy_value = F.cross_entropy(inputs, target)
+        cosine_loss_value = self.cosine_loss(class_embedded, target)
+        entropy_value = F.cross_entropy(inputs, target) if inputs.shape[1] > 1 else F.binary_cross_entropy_with_logits(
+            inputs, target)
         return cosine_loss_value + self.lambda_ * entropy_value
 
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from box_dataset import BoxDataFolder
 from model_wrapper import ImagenetAugmentTransformers, ImagenetTransformers, NnModelWrapper
-from models import create_pretrained_resnet50, PretrainedResnet50WithClassEmbedding
+from models import PretrainedResnet50WithClassEmbedding
 from scripts.common_cfg import RANDOM_SEED
 
 
@@ -27,7 +27,7 @@ def main():
     save_dir.mkdir(exist_ok=True, parents=True)
 
     NnModelWrapper.write_indices(test_dataloader.sampler.indices, "test", save_dir)
-    model = NnModelWrapper(params, model_factory=PretrainedResnet50WithClassEmbedding, save_dir=save_dir, lr=1e-2,
+    model = NnModelWrapper(params, model_factory=PretrainedResnet50WithClassEmbedding, save_dir=save_dir, lr=1e-1,
                            clip_grad_value=10, random_state=RANDOM_SEED, loss_function="cosine_cross_entropy",
                            loss_lambda_=0.1)
     score, result_df = model.holdout_train(data_loader=train_dataloader,
