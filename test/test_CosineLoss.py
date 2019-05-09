@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import torch
 
-from model_wrapper import CosineCrossEntropyLoss, CosineLoss
+from models import CosineLoss, CosineCrossEntropyLoss
 
 
 class TestCrossEntropyCosineLoss(TestCase):

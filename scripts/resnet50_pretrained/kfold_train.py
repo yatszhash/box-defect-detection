@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from box_dataset import BoxDataFolder
-from model_wrapper import ImagenetAugmentTransformers, ImagenetTransformers, NnModelWrapper
-from models import create_pretrained_resnet50
+from model_wrapper import NnModelTrainer
+from models import create_pretrained_resnet50, ImagenetTransformers, ImagenetAugmentTransformers
 from scripts.common_cfg import RANDOM_SEED
 
 
@@ -24,8 +24,8 @@ def main():
     save_dir = Path(__file__).parent.parent.joinpath("output/resnet50_pretrained")
     save_dir.mkdir(exist_ok=True, parents=True)
 
-    NnModelWrapper.write_indices(test_dataloader.sampler.indices, "test", save_dir)
-    model = NnModelWrapper(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-2,
+    NnModelTrainer.write_indices(test_dataloader.sampler.indices, "test", save_dir)
+    model = NnModelTrainer(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-2,
                            clip_grad_value=10, random_state=RANDOM_SEED)
     score_avg, score_mean, _, _ = model.kfold_train(data_loader=train_dataloader,
                                                     train_batch_size=32,

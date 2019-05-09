@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from box_dataset import BoxDataFolder
-from model_wrapper import ImagenetAugmentTransformers, ImagenetTransformers, NnModelWrapper
-from models import create_pretrained_resnet50
+from model_wrapper import NnModelTrainer
+from models import create_pretrained_resnet50, ImagenetTransformers, ImagenetAugmentTransformers
 from scripts.common_cfg import RANDOM_SEED
 
 
@@ -27,8 +27,8 @@ def main():
     save_dir.mkdir(exist_ok=True, parents=True)
 
     prepruning = {'4.weight': 0.2, '2.weight': 0.01}
-    NnModelWrapper.write_indices(test_dataloader.sampler.indices, "test", save_dir)
-    model = NnModelWrapper(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-3,
+    NnModelTrainer.write_indices(test_dataloader.sampler.indices, "test", save_dir)
+    model = NnModelTrainer(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-3,
                            clip_grad_value=10, random_state=RANDOM_SEED, loss_function="cosine",
                            model_path=model_path, prepruning=prepruning)
     score, result_df = model.holdout_train(data_loader=train_dataloader,

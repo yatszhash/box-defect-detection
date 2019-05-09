@@ -9,17 +9,17 @@ import pandas as pd
 import tensorboardX as tbx
 import torch
 import torch.nn.functional as F
-from sklearn.metrics import f1_score
+import torchvision
+from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.preprocessing import binarize
 from torch import nn
 from torch import optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.utils.data import DataLoader
-from torchvision.transforms import Compose, Resize, ToTensor, Normalize, RandomHorizontalFlip, RandomResizedCrop
+from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 from box_dataset import to_kfold_dataloader, to_holdout_dataloader
-from models import PretrainedResnet50WithClassEmbedding
+from models import PretrainedResnet50WithClassEmbedding, ImagenetTransformers, CosineLoss, CosineCrossEntropyLoss
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,66 +28,7 @@ stdout_handler.setLevel(logging.INFO)
 logger.addHandler(stdout_handler)
 
 
-class ImagenetTransformers:
-    SIZE = 224
-
-    def __init__(self):
-        transform_list = [
-            # transforms.ToPILImage(),
-            Resize(self.SIZE),
-            ToTensor(),
-            Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]
-        self.transforms = Compose(transform_list)
-
-    def __call__(self, *args, **kwargs):
-        return self.transforms(*args, **kwargs)
-
-
-class ImagenetAugmentTransformers:
-    SIZE = 224
-
-    def __init__(self):
-        transform_list = [
-            RandomResizedCrop(size=self.SIZE, scale=(0.85, 1.0), ratio=(1, 1)),
-            RandomHorizontalFlip(),
-            ToTensor(),
-            Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]
-        self.transforms = Compose(transform_list)
-
-    def __call__(self, *args, **kwargs):
-        return self.transforms(*args, **kwargs)
-
-
-class CosineLoss(nn.Module):
-
-    def forward(self, inputs: torch.Tensor, target: torch.Tensor):
-        if len(target.shape) == 1:
-            target = F.one_hot(target.long()).float()
-        elif len(target.shape) == 2 and target.shape[1] == 1:
-            target = F.one_hot(target.long().reshape(-1)).float()
-        normalized_input = inputs / inputs.norm(dim=1, keepdim=True)
-        dot_product = (normalized_input * target).sum(dim=1)
-        return (1 - dot_product).mean()
-
-
-class CosineCrossEntropyLoss(nn.Module):
-
-    def __init__(self, lambda_):
-        super().__init__()
-        self.cosine_loss = CosineLoss()
-        self.lambda_ = lambda_
-
-    def forward(self, class_embedded: torch.Tensor, inputs: torch.Tensor, target: torch.Tensor):
-        target = target.long().reshape(-1)
-        cosine_loss_value = self.cosine_loss(class_embedded, target)
-        entropy_value = F.cross_entropy(inputs, target) if inputs.shape[1] > 1 else F.binary_cross_entropy_with_logits(
-            inputs, target)
-        return cosine_loss_value + self.lambda_ * entropy_value
-
-
-class NnModelWrapper(object, metaclass=ABCMeta):
+class NnModelTrainer(object, metaclass=ABCMeta):
     '''
     ported from my own kaggle repository
     '''
@@ -416,3 +357,54 @@ class NnModelWrapper(object, metaclass=ABCMeta):
         if isinstance(m, nn.Linear):
             nn.init.xavier_uniform(m.weight.data)
             m.bias.data.zero_()
+
+
+class ModelEvaluation(object):
+
+    def __init__(self, model_factory, model_params, model_path, save_dir):
+        self.model = model_factory(**model_params).cuda()
+        self.model.load_state_dict(torch.load(model_path))
+        self.save_dir = save_dir
+
+    def evaluate_dataset(self, data_folder: torchvision.datasets.ImageFolder, train_indices, valid_indices, test_indice,
+                         batch_size, num_workers=None):
+        self._datafolder = data_folder
+        self.scores_df = pd.DataFrame()
+        num_workers = os.cpu_count() if num_workers is None else num_workers
+
+        self._evaluate(train_indices, batch_size, "train", num_workers)
+        self._evaluate(valid_indices, batch_size, "valid", num_workers)
+        self._evaluate(test_indice, batch_size, "test", num_workers)
+
+        self.scores_df.to_csv(self.save_dir.joinpath("evaluation_score.csv"))
+        print(self.scores_df)
+
+    def _evaluate(self, indices, batch_size, subset_name, num_workers=None):
+        subset = Subset(self._datafolder, indices)
+
+        logger.info("predicting {} samples...".format(len(subset)))
+
+        self.model.eval()
+        predicted_df = pd.DataFrame()
+        predicted_df["file_name"] = [self._datafolder.samples[idx][0] for idx in indices]
+        predicted_df["target"] = [self._datafolder.targets[idx] for idx in indices]
+
+        predicted_df["predicted"] = np.vstack([self._predict(x).cpu().detach().numpy() for x
+                                               in tqdm(
+                DataLoader(dataset=subset, shuffle=False, batch_size=batch_size, num_workers=num_workers))])
+        predicted_df["class"] = binarize(predicted_df["predicted"].values.reshape((-1, 1)), threshold=0.5)
+
+        predicted_df.to_csv(self.save_dir.joinpath(f
+        '{subset_name}_predicted.csv'))
+        self.scores_df = self.scores_df.append({
+            "subset": subset_name,
+            "n_samples": len(subset),
+            "f1_scores": f1_score(predicted_df["target"].values, predicted_df["class"].values),
+            "roc_auc": roc_auc_score(predicted_df["target"].values, predicted_df["predicted"].values)
+        }, ignore_index=True)
+
+    def _predict(self, x):
+        output = self.model(x[0].cuda())
+        if output.shape[1] == 2:
+            return torch.softmax(output, dim=1)[:, 1:]
+        return torch.sigmoid(output)
