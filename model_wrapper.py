@@ -94,7 +94,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
     def __init__(self, model_params, model_factory, save_dir: Path, optimizer_factory=None, loss_function=None,
                  score_function=None, lr=1e-3, weight_decay=1e-4, scheduler="cosine_annealing", clip_grad_value=None,
                  threshold=0.5, model_path=None,
-                 random_state=0, **kwargs):
+                 random_state=0, prepruning=None, **kwargs):
         self.random_state = random_state
         self.threshold = threshold
         self.model_path = model_path
@@ -109,6 +109,7 @@ class NnModelWrapper(object, metaclass=ABCMeta):
 
         self.save_root = save_dir
         self._current_save_dir = save_dir
+        self.prepruning = prepruning
         self.kwargs = kwargs
 
         if score_function:
@@ -127,10 +128,17 @@ class NnModelWrapper(object, metaclass=ABCMeta):
             for p in self.model.parameters():
                 p.register_hook(lambda grad: torch.clamp(grad, min=-self.clip_grad_value, max=self.clip_grad_value))
 
+        if self.prepruning is not None:
+            for name, threshold in self.prepruning:
+                mask = self.model.named_parameters()[name].data.abs() < threshold
+                layer = self.model.named_parameters()[name]
+                layer.data = layer.data.masked_fill_(mask, 0.0)
+                layer.register_hook(lambda grad: grad.masked_fill_(mask, threshold))
+
         self._model_to_device(self.random_state)
 
-        # if model_path:
-        #     self.model.load_state_dict(torch.load(str(model_path)))
+        if self.model_path:
+            self.model.load_state_dict(torch.load(str(self.model_path)))
 
         self.n_epoch = None
         self._current_epoch = 0
