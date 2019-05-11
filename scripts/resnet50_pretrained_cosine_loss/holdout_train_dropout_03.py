@@ -8,7 +8,7 @@ from scripts.common_cfg import RANDOM_SEED
 
 def main():
     params = {
-        "dropout_rate": 0.7,
+        "dropout_rate": 0.3,
         "inner_units": 16,
         "n_class": 2
     }
