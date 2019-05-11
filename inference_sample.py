@@ -10,9 +10,7 @@ if __name__ == '__main__':
     inferrer = Inferrer()
 
     for path in ok_samples:
-        print(f
-        "image { str(path) } is { inferrer(path) }")
+        print(f"image { str(path) } is { inferrer(path) }")
 
         for path in ng_samples:
-            print(f
-            "image { str(path) } is { inferrer(path) }")
+            print(f"image { str(path) } is { inferrer(path) }")

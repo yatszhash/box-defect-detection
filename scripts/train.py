@@ -17,5 +17,4 @@ if __name__ == '__main__':
     elif model_name == "resnet50_pretrained_cosine_pruned":
         resnet50_pretrained_cosine_pruned_train()
     else:
-        raise ValueError(f
-        "not supported model { model_name }")
+        raise ValueError(f"not supported model { model_name }")
