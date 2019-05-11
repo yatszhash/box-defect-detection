@@ -1,9 +1,22 @@
 
+## BOX deficit detection models
+
+
+##  How to Infer with trained model?
+
+Use  *Inferrer Class* in [inference.py](inference.py)
+
+Please see [inference_sample.py](inference_sample.py) to see how to use it.  
+
 
 # modeling
 - transfer learning
 - sparse modeling
-- 
+- small batch size
+- large drop out
+- pruning
+- cosine annealing
+- cosine loss
 
 # base model
 - resnet
