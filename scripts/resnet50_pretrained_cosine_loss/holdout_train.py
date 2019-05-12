@@ -8,7 +8,7 @@ from scripts.common_cfg import RANDOM_SEED
 
 def main():
     params = {
-        "dropout_rate": 0.7,
+        "dropout_rate": 0.3,
         "inner_units": 16,
         "n_class": 2
     }
@@ -26,13 +26,13 @@ def main():
     save_dir.mkdir(exist_ok=True, parents=True)
 
     NnModelTrainer.write_indices(test_dataloader.sampler.indices, "test", save_dir)
-    model = NnModelTrainer(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=1e-2,
+    model = NnModelTrainer(params, model_factory=create_pretrained_resnet50, save_dir=save_dir, lr=2e-2,
                            clip_grad_value=10, random_state=RANDOM_SEED, loss_function="cosine")
     score, result_df = model.holdout_train(data_loader=train_dataloader,
                                            train_batch_size=64,
                                            valid_batch_size=128,
                                            n_epochs=400,
-                                           patience=200,
+                                           patience=100,
                                            valid_size=0.2,
                                            aug_ratio=2,
                                            random_seed=RANDOM_SEED)
