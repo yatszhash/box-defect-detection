@@ -31,10 +31,9 @@ class Inferrer(object):
     }
 
     MODEL_STATE_PATHS = {
-        "resnet50_pretrained": "output/resnet50_pretrained_fixed/holdout/model",
+        "resnet50_pretrained": "output/resnet50_pretrained/holdout/model",
         "resnet50_pretrained_cosine": "output/resnet50_pretrained_cosine/holdout/model",
-        "resnet50_pretrained_cosine_pruned:": "output/resnet50_pretrained_cosine_pruned/model",
-
+        "resnet50_pretrained_cosine_pruned:": "output/resnet50_pretrained_cosine_pruned/model"
     }
 
     def __init__(self, model_name="resnet50_pretrained"):

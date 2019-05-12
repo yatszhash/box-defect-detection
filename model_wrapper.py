@@ -394,8 +394,7 @@ class ModelEvaluation(object):
                 DataLoader(dataset=subset, shuffle=False, batch_size=batch_size, num_workers=num_workers))])
         predicted_df["class"] = binarize(predicted_df["predicted"].values.reshape((-1, 1)), threshold=0.5)
 
-        predicted_df.to_csv(self.save_dir.joinpath(f
-        '{subset_name}_predicted.csv'))
+        predicted_df.to_csv(self.save_dir.joinpath(f'{subset_name}_predicted.csv'))
         self.scores_df = self.scores_df.append({
             "subset": subset_name,
             "n_samples": len(subset),

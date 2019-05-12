@@ -5,6 +5,7 @@ import torch
 
 RANDOM_SEED = 1234
 
+# If you want to fix random seed, please call this function in training scripts.
 def fix_seed():
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
