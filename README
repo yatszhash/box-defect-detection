@@ -5,6 +5,15 @@
 
 You can see the model report [here](./analyze/report.ipynb)
 
+## get trained model and result
+
+Download zip file from 
+
+https://drive.google.com/open?id=1sB-zyM0wzE-yyrVSwSUmqNEFScUnjYvQ
+
+and unzip it into the project root.
+This step are required to infer with the trained models.
+
 ## DataSet
 
 I'm sorry that the dataset is not allowed to publish.  
@@ -43,27 +52,3 @@ These train results are saved under [output dir](output)"
 Use  *Inferrer Class* in [inference.py](inference.py).
 
 Please see [inference_sample.py](inference_sample.py) to see how to use it.  
-
-
-# modeling
-- transfer learning
-- sparse modeling
-- small batch size
-- large drop out
-- pruning
-- cosine annealing
-- cosine loss
-
-# base model
-- resnet
-
-# scaling
-- subtracting the mean channel value 
-  computed over the entire training set and dividing by the standard deviation.
-
-# augmentation
-
-- randomly cropped from
-    (NGに傷やへこみなど一部の変化だけがある場合、cropにより判断に必要な情報が欠落する可能性があるため行わない)
-- random horizontal flipping
-- random shifting/cropping
